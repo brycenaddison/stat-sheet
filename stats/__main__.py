@@ -5,6 +5,7 @@ import stats.roster
 import pygsheets
 import json
 import os
+import pandas
 
 
 def download_data(url, filename):
@@ -66,37 +67,76 @@ def get_img_link(team: str, teams: dict[str, any]):
     return list(filter(lambda item: item["code"] == team, teams))[0]["logo"]
 
 
+def percent(column):
+    return column.apply(lambda x: "{:.0%}".format(x) if x != "" else "")
+
+
 def update_players(
     performances, sheet: pygsheets.Spreadsheet, sheet_name: str
 ):
     players = stats.players.Players(data=performances)
     df = players.dataframe()
+    nf = pandas.DataFrame()
+
+    nf["Player"] = df["team"].apply(
+        lambda x: f'=IMAGE("{get_img_link(x, teams)}")'
+    )
     roster = stats.roster.Roster()
     roster.load_data()
-    df["puuid"] = df["puuid"].apply(roster.get_name)
+    nf["Summoner Name"] = df["puuid"].apply(roster.get_name)
     roster.dump_data()
 
-    df["kda"] = (df["kills"] + df["assists"]) / df["deaths"]
-    df["cs/m"] = df["cs"] * 60 / df["time"]
-    df["g/m"] = df["gold"] * 60 / df["time"]
-    df["dmg/m"] = df["dmg"] * 60 / df["time"]
-    df["vs/m"] = df["vs"] * 60 / df["time"]
-    df["k/g"] = df["kills"] / df["n"]
-    df["d/g"] = df["deaths"] / df["n"]
-    df["a/g"] = df["assists"] / df["n"]
-    df["gd8/g"] = df["gd8"] / df["n"]
-    df["xpd8/g"] = df["xpd8"] / df["n"]
-    df["csd8/g"] = df["csd8"] / df["n"]
-    df["gd14/g"] = df["gd14"] / df["n"]
-    df["xpd14/g"] = df["xpd14"] / df["n"]
-    df["csd14/g"] = df["csd14"] / df["n"]
-    df["fb%"] = df["fb"] / df["n"]
-    df["fbv%"] = df["fbv"] / df["n"]
-    df["jp%"] = df["jgmins"] / (13 * df["n"])
+    roles = {
+        "TOP": "Top",
+        "JUNGLE": "Jungle",
+        "MIDDLE": "Middle",
+        "BOTTOM": "Bottom",
+        "UTILITY": "Support",
+    }
 
-    print(df)
+    nf["Role"] = df["role"].apply(lambda x: roles[x])
+    nf["Games"] = df["n"]
+    nf["Win Rate"] = percent(df["wins"] / df["n"])
+    nf["KDA"] = df["kda"].apply(lambda x: round(x, 2))
+    nf["Kills"] = df["kills"]
+    nf["Deaths"] = df["deaths"]
+    nf["Assists"] = df["assists"]
+    nf["Avg Kills"] = df["k/g"].apply(lambda x: round(x, 2))
+    nf["Avg Deaths"] = df["d/g"].apply(lambda x: round(x, 2))
+    nf["Avg Assists"] = df["a/g"].apply(lambda x: round(x, 2))
+    nf["CS/min"] = df["cs/m"].apply(lambda x: round(x, 2))
+    nf["Gold/min"] = df["g/m"].apply(lambda x: round(x, 2))
+    nf["Gold%"] = percent(df["gold%"])
+    nf["KP%"] = percent(df["kp"])
+    nf["JP%"] = percent(df["jp%"])
+    nf["DMG%"] = percent(df["dmg%"])
+    nf["DMG/Gold"] = df["dmg/gold"].apply(lambda x: round(x, 2))
+    nf["DMG/min"] = df["dmg/m"].apply(lambda x: round(x, 2))
+    nf["VS/min"] = df["vs/m"].apply(lambda x: round(x, 2))
+    nf["W/min"] = df["w/m"].apply(lambda x: round(x, 2))
+    nf["WC/min"] = df["wc/m"].apply(lambda x: round(x, 2))
+    nf["CW/min"] = df["cw/m"].apply(lambda x: round(x, 2))
+    nf["GD@8"] = df["gd8/g"].apply(lambda x: round(x, 2))
+    nf["CSD@8"] = df["csd8/g"].apply(lambda x: round(x, 2))
+    nf["XPD@8"] = df["xpd8/g"].apply(lambda x: round(x, 2))
+    nf["GD@14"] = df["gd14/g"].apply(lambda x: round(x, 2))
+    nf["CSD@14"] = df["csd14/g"].apply(lambda x: round(x, 2))
+    nf["XPD@14"] = df["xpd14/g"].apply(lambda x: round(x, 2))
+    nf["K+A@15"] = df["ka15/g"].apply(lambda x: round(x, 2))
+    nf["K+A@25"] = df["ka25/g"].apply(lambda x: round(x, 2))
+    nf["FB%"] = percent(df["fb%"])
+    nf["FB Victim"] = percent(df["fbv%"])
+    nf["Death%"] = percent(df["death%"])
+    nf["Solo Kills"] = df["solokills"]
+    nf["Doubles"] = df["doubles"]
+    nf["Triples"] = df["triples"]
+    nf["Quadras"] = df["quadras"]
+    nf["Pentakills"] = df["pentas"]
+    nf.replace(float("inf"), "Perfect", inplace=True)
+
+    print(nf)
     wks = sheet.worksheet_by_title(sheet_name)
-    wks.set_dataframe(df, (1, 1))
+    wks.set_dataframe(nf, (1, 1))
 
 
 if __name__ == "__main__":

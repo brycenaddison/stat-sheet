@@ -120,18 +120,18 @@ class Players:
         d["a25"] += p["a25"]
         d["d25"] += p["d25"]
         d["jgmins"] += p["jgmins"] if p["jgmins"] is not None else 0
-        d["tk"] = p["tk"]
-        d["td"] = p["td"]
-        d["ta"] = p["ta"]
-        d["tgold"] = p["tgold"]
-        d["tdmg"] = p["tdmg"]
-        d["tvs"] = p["tvs"]
-        d["tk15"] = p["tk15"]
-        d["td15"] = p["td15"]
-        d["ta15"] = p["ta15"]
-        d["tk25"] = p["tk25"]
-        d["td25"] = p["td25"]
-        d["ta25"] = p["ta25"]
+        d["tk"] += p["tk"]
+        d["td"] += p["td"]
+        d["ta"] += p["ta"]
+        d["tgold"] += p["tgold"]
+        d["tdmg"] += p["tdmg"]
+        d["tvs"] += p["tvs"]
+        d["tk15"] += p["tk15"]
+        d["td15"] += p["td15"]
+        d["ta15"] += p["ta15"]
+        d["tk25"] += p["tk25"]
+        d["td25"] += p["td25"]
+        d["ta25"] += p["ta25"]
 
     def add_all_performances(self, data):
         for p in data:
@@ -158,6 +158,37 @@ class Players:
         """
         print("Exporting dataframe...")
         df = pandas.DataFrame().from_records(list(self.players.values()))
+
+        df["kda"] = (df["kills"] + df["assists"]) / df["deaths"]
+        df["dmg/gold"] = df["dmg"] / df["gold"]
+        df["cs/m"] = df["cs"] * 60 / df["time"]
+        df["g/m"] = df["gold"] * 60 / df["time"]
+        df["dmg/m"] = df["dmg"] * 60 / df["time"]
+        df["vs/m"] = df["vs"] * 60 / df["time"]
+        df["w/m"] = df["w"] * 60 / df["time"]
+        df["cw/m"] = df["cw"] * 60 / df["time"]
+        df["wc/m"] = df["wc"] * 60 / df["time"]
+        df["k/g"] = df["kills"] / df["n"]
+        df["d/g"] = df["deaths"] / df["n"]
+        df["a/g"] = df["assists"] / df["n"]
+        df["ka15/g"] = (df["k15"] + df["a15"]) / df["n"]
+        df["ka25/g"] = (df["k25"] + df["a25"]) / df["n"]
+        df["kp15"] = df["k15"] / df["tk15"]
+        df["kp25"] = df["k25"] / df["tk25"]
+        df["kp"] = df["kills"] / df["tk"]
+        df["gd8/g"] = df["gd8"] / df["n"]
+        df["xpd8/g"] = df["xpd8"] / df["n"]
+        df["csd8/g"] = df["csd8"] / df["n"]
+        df["gd14/g"] = df["gd14"] / df["n"]
+        df["xpd14/g"] = df["xpd14"] / df["n"]
+        df["csd14/g"] = df["csd14"] / df["n"]
+        df["death%"] = df["deaths"] / df["td"]
+        df["fb%"] = df["fb"] / df["n"]
+        df["fbv%"] = df["fbv"] / df["n"]
+        df["jp%"] = df["jgmins"] / (13 * df["n"])
+        df["gold%"] = df["gold"] / df["tgold"]
+        df["dmg%"] = df["dmg"] / df["tdmg"]
+        df["vs%"] = df["vs"] / df["tvs"]
 
         print("Dataframe exported.")
 
