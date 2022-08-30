@@ -161,7 +161,7 @@ class Teams:
         df["baron%"] = df["barons"] / (df["barons"] + df["obarons"])
         df["t/g"] = df["towers"] / df["n"]
         df["ot/g"] = df["otowers"] / df["n"]
-        df["d/g"] = df["dragons"] / df["n"]
+        df["drag/g"] = df["dragons"] / df["n"]
         df["h/g"] = df["heralds"] / df["n"]
         df["b/g"] = df["barons"] / df["n"]
         df["bwin%"] = df["bluewins"] / df["bluegames"]

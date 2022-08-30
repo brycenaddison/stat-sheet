@@ -121,7 +121,7 @@ def update_teams(
     nf["TG/g"] = df["ot/g"].apply(lambda x: round(x, 2))
     nf["FD%"] = percent(df["fd%"])
     nf["Drag%"] = percent(df["drag%"])
-    nf["Drag/g"] = df["d/g"].apply(lambda x: round(x, 2))
+    nf["Drag/g"] = df["drag/g"].apply(lambda x: round(x, 2))
     nf["Rift%"] = percent(df["rift%"])
     nf["Rift/g"] = df["rift%"].apply(lambda x: round(x, 2))
     nf["Baron/g"] = df["b/g"].apply(lambda x: round(x, 2))
