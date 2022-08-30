@@ -1,0 +1,26 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+requests = "*"
+openpyxl = "*"
+pandas = "*"
+pygsheets = "*"
+asyncio = "*"
+python-dotenv = "*"
+
+[dev-packages]
+black = "*"
+flake8 = "*"
+isort = "*"
+pre-commit = "*"
+mypy = "*"
+
+[requires]
+python_version = "3.10"
+
+[scripts]
+start = "python -m stats"
+pre-commit = "pre-commit run --all-files"
