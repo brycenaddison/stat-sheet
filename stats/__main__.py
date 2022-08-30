@@ -1,7 +1,8 @@
 import requests
-import stats.champions
-import stats.players
-import stats.roster
+from stats.champions import Champions
+from stats.players import Players
+from stats.roster import Roster
+from stats.teams import Teams
 import pygsheets
 import json
 import os
@@ -25,8 +26,23 @@ def get_data(url, filename):
         return download_data(url, filename)
 
 
-def update_champs(p, tp, sheet: pygsheets.Spreadsheet, sheet_name: str, teams):
-    champions = stats.champions.Champions(performances=p, team_performances=tp)
+def get_property(team: str, property: str, teams: dict[str, any]):
+    if team == "":
+        return ""
+    return list(filter(lambda item: item["code"] == team, teams))[0][property]
+
+
+def percent(column):
+    return column.apply(lambda x: "{:.0%}".format(x) if x != "" else "")
+
+
+def time(x):
+    return f"{x.components.hours:02d}:{x.components.minutes:02d}:{x.components.seconds:02d}"
+
+
+def update_champs(
+    champions: Champions, sheet: pygsheets.Spreadsheet, sheet_name: str, teams
+):
     df = champions.dataframe().fillna("")
     df["Presence"] = df["Presence"].apply(
         lambda x: "{:.0%}".format(x) if x != "" else ""
@@ -43,11 +59,11 @@ def update_champs(p, tp, sheet: pygsheets.Spreadsheet, sheet_name: str, teams):
         else ""
     )
     df["BP Team"] = df["BP Team"].apply(
-        lambda x: f'=IMAGE("{get_img_link(x, teams)}")'
+        lambda x: f'=IMAGE("{get_property(x, "logo", teams)}")'
     )
     df.replace(float("inf"), "Perfect", inplace=True)
 
-    roster = stats.roster.Roster()
+    roster = Roster()
     roster.load_data()
     df["Best Player"] = df["Best Player"].apply(roster.get_name)
     roster.dump_data()
@@ -61,27 +77,77 @@ def update_champs(p, tp, sheet: pygsheets.Spreadsheet, sheet_name: str, teams):
     wks.set_dataframe(df, (1, 1))
 
 
-def get_img_link(team: str, teams: dict[str, any]):
-    if team == "":
-        return ""
-    return list(filter(lambda item: item["code"] == team, teams))[0]["logo"]
+def update_teams(
+    teams: Teams, sheet: pygsheets.Spreadsheet, sheet_name: str, team_data
+):
+    df = teams.dataframe()
+    nf = pandas.DataFrame()
 
+    nf["Team"] = df["team"].apply(
+        lambda x: f'=IMAGE("{get_property(x, "logo", team_data)}")'
+    )
+    nf["Team Code"] = df["team"]
+    nf["Team Name"] = df["team"].apply(
+        lambda x: get_property(x, "name", team_data)
+    )
+    nf["Games"] = df["n"]
+    nf["Win Rate"] = percent(df["win%"])
+    nf["Time"] = df["gt"].apply(time)
+    nf["Blue Wins"] = df["bluewins"]
+    nf["Blue Win%"] = percent(df["bwin%"])
+    nf["Red Wins"] = df["redwins"]
+    nf["Red Win%"] = percent(df["rwin%"])
+    nf["K/D"] = percent(df["kd"])
+    nf["Kills/g"] = df["k/g"].apply(lambda x: round(x, 2))
+    nf["Deaths/g"] = df["d/g"].apply(lambda x: round(x, 2))
+    nf["Assists/g"] = df["a/g"].apply(lambda x: round(x, 2))
+    nf["Kills@15"] = df["k15"].apply(lambda x: round(x, 2))
+    nf["Kills@25"] = df["k25"].apply(lambda x: round(x, 2))
+    nf["FB%"] = percent(df["fb%"])
+    nf["DMG/min"] = df["dmg/m"].apply(lambda x: round(x, 2))
+    nf["Gold/min"] = df["g/m"].apply(lambda x: round(x, 2))
+    nf["GD@14"] = df["gd14/g"].apply(lambda x: round(x, 2))
+    nf["CS/min"] = df["cs/m"].apply(lambda x: round(x, 2))
+    nf["CSD@14"] = df["csd14/g"].apply(lambda x: round(x, 2))
+    nf["XP/min"] = df["xp/m"].apply(lambda x: round(x, 2))
+    nf["XPD@14"] = df["xpd14/g"].apply(lambda x: round(x, 2))
+    nf["VS/min"] = df["vs/m"].apply(lambda x: round(x, 2))
+    nf["Ward/min"] = df["w/m"].apply(lambda x: round(x, 2))
+    nf["CW/min"] = df["cw/m"].apply(lambda x: round(x, 2))
+    nf["WC/min"] = df["wc/m"].apply(lambda x: round(x, 2))
+    nf["WC%"] = percent(df["wc%"])
+    nf["FT%"] = percent(df["ft%"])
+    nf["Tower/g"] = df["t/g"].apply(lambda x: round(x, 2))
+    nf["TG/g"] = df["ot/g"].apply(lambda x: round(x, 2))
+    nf["FD%"] = percent(df["fd%"])
+    nf["Drag%"] = percent(df["drag%"])
+    nf["Drag/g"] = df["d/g"].apply(lambda x: round(x, 2))
+    nf["Rift%"] = percent(df["rift%"])
+    nf["Rift/g"] = df["rift%"].apply(lambda x: round(x, 2))
+    nf["Baron/g"] = df["b/g"].apply(lambda x: round(x, 2))
+    nf["Baron%"] = percent(df["baron%"])
 
-def percent(column):
-    return column.apply(lambda x: "{:.0%}".format(x) if x != "" else "")
+    nf = nf.sort_values(
+        ["Win Rate", "Time"],
+        ascending=[False, True],
+        ignore_index=True,
+    )
+    wks = sheet.worksheet_by_title(sheet_name)
+    wks.set_dataframe(nf, (1, 1))
 
 
 def update_players(
-    performances, sheet: pygsheets.Spreadsheet, sheet_name: str
+    players: Players, sheet: pygsheets.Spreadsheet, sheet_name: str, team_data
 ):
-    players = stats.players.Players(data=performances)
     df = players.dataframe()
     nf = pandas.DataFrame()
 
-    nf["Player"] = df["team"].apply(
-        lambda x: f'=IMAGE("{get_img_link(x, teams)}")'
+    nf["Team"] = df["team"].apply(
+        lambda x: f'=IMAGE("{get_property(x, "logo", team_data)}")'
     )
-    roster = stats.roster.Roster()
+    nf["Team Code"] = df["team"]
+
+    roster = Roster()
     roster.load_data()
     nf["Summoner Name"] = df["puuid"].apply(roster.get_name)
     roster.dump_data()
@@ -123,15 +189,24 @@ def update_players(
     nf["CSD@14"] = df["csd14/g"].apply(lambda x: round(x, 2))
     nf["XPD@14"] = df["xpd14/g"].apply(lambda x: round(x, 2))
     nf["K+A@15"] = df["ka15/g"].apply(lambda x: round(x, 2))
+    nf["KP%@15"] = percent(df["kp15"])
     nf["K+A@25"] = df["ka25/g"].apply(lambda x: round(x, 2))
+    nf["KP%@25"] = percent(df["kp25"])
     nf["FB%"] = percent(df["fb%"])
     nf["FB Victim"] = percent(df["fbv%"])
+    nf["Kill%"] = percent(df["kill%"])
     nf["Death%"] = percent(df["death%"])
     nf["Solo Kills"] = df["solokills"]
     nf["Doubles"] = df["doubles"]
     nf["Triples"] = df["triples"]
     nf["Quadras"] = df["quadras"]
     nf["Pentakills"] = df["pentas"]
+
+    nf = nf.sort_values(
+        ["Kills", "Games", "Win Rate"],
+        ascending=[False, False, False],
+        ignore_index=True,
+    )
     nf.replace(float("inf"), "Perfect", inplace=True)
 
     print(nf)
@@ -162,15 +237,19 @@ if __name__ == "__main__":
     plat_sheet = gc.open_by_key("17bzMtkinBMWADMarb0gM1BBSGt_O4GPhQR7ANAOh-4g")
     dia_sheet = gc.open_by_key("1gdjQQycmcA25PraEaTn16O1tpL20I9edYN_Y_o67nMA")
 
-    update_players(plat_performances, plat_sheet, "Players")
-    update_players(dia_performances, dia_sheet, "Players")
-    update_champs(
-        plat_performances,
-        plat_teamperformances,
-        plat_sheet,
-        "Champions",
-        teams,
-    )
-    update_champs(
-        dia_performances, dia_teamperformances, dia_sheet, "Champions", teams
-    )
+    plat_players = Players(plat_performances)
+    plat_champs = Champions(plat_performances, plat_teamperformances)
+    plat_teams = Teams(plat_teamperformances)
+
+    dia_players = Players(dia_performances)
+    dia_champs = Champions(dia_performances, dia_teamperformances)
+    dia_teams = Teams(dia_teamperformances)
+
+    update_players(plat_players, plat_sheet, "Players", teams)
+    update_players(dia_players, dia_sheet, "Players", teams)
+
+    update_champs(plat_champs, plat_sheet, "Champions", teams)
+    update_champs(dia_champs, dia_sheet, "Champions", teams)
+
+    update_teams(plat_teams, plat_sheet, "Teams", teams)
+    update_teams(plat_teams, dia_sheet, "Teams", teams)

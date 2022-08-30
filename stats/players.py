@@ -11,7 +11,6 @@ class Players:
             data (dict, optional): _description_. Defaults to None.
         """
         self.players = {}
-        self.teams = {}
         if data is not None:
             self.add_all_performances(data)
 
@@ -173,15 +172,16 @@ class Players:
         df["a/g"] = df["assists"] / df["n"]
         df["ka15/g"] = (df["k15"] + df["a15"]) / df["n"]
         df["ka25/g"] = (df["k25"] + df["a25"]) / df["n"]
-        df["kp15"] = df["k15"] / df["tk15"]
-        df["kp25"] = df["k25"] / df["tk25"]
-        df["kp"] = df["kills"] / df["tk"]
+        df["kp15"] = (df["k15"] + df["a15"]) / df["tk15"]
+        df["kp25"] = (df["k25"] + df["a25"]) / df["tk25"]
+        df["kp"] = (df["kills"] + df["assists"]) / df["tk"]
         df["gd8/g"] = df["gd8"] / df["n"]
         df["xpd8/g"] = df["xpd8"] / df["n"]
         df["csd8/g"] = df["csd8"] / df["n"]
         df["gd14/g"] = df["gd14"] / df["n"]
         df["xpd14/g"] = df["xpd14"] / df["n"]
         df["csd14/g"] = df["csd14"] / df["n"]
+        df["kill%"] = df["kills"] / df["tk"]
         df["death%"] = df["deaths"] / df["td"]
         df["fb%"] = df["fb"] / df["n"]
         df["fbv%"] = df["fbv"] / df["n"]
