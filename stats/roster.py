@@ -3,7 +3,7 @@ import json
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.abspath(os.path.dirname(__file__)), ".env"))
 
 RIOT_KEY = os.getenv("RIOT_KEY")
 
@@ -44,7 +44,8 @@ class Roster:
         Args:
             filename (str, optional): File path. Defaults to "data/rosters.json".
         """
-
+        if not os.path.exists(filename):
+            return
         print(f"Loading data from {filename}")
         with open(filename, "r", encoding="utf-8") as f:
             self.rosters = json.load(f)
