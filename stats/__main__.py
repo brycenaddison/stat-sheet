@@ -3,6 +3,7 @@ from stats.champions import Champions
 from stats.players import Players
 from stats.roster import Roster
 from stats.teams import Teams
+from stats.teampage import TeamPage
 import pygsheets
 import json
 import os
@@ -97,12 +98,12 @@ def update_teams(
     nf["Blue Win%"] = percent(df["bwin%"])
     nf["Red Wins"] = df["redwins"]
     nf["Red Win%"] = percent(df["rwin%"])
-    nf["K/D"] = percent(df["kd"])
+    nf["K/D"] = df["kd"].apply(lambda x: round(x, 2))
     nf["Kills/g"] = df["k/g"].apply(lambda x: round(x, 2))
     nf["Deaths/g"] = df["d/g"].apply(lambda x: round(x, 2))
     nf["Assists/g"] = df["a/g"].apply(lambda x: round(x, 2))
-    nf["Kills@15"] = df["k15"].apply(lambda x: round(x, 2))
-    nf["Kills@25"] = df["k25"].apply(lambda x: round(x, 2))
+    nf["Kills@15"] = df["k15/g"].apply(lambda x: round(x, 2))
+    nf["Kills@25"] = df["k25/g"].apply(lambda x: round(x, 2))
     nf["FB%"] = percent(df["fb%"])
     nf["DMG/min"] = df["dmg/m"].apply(lambda x: round(x, 2))
     nf["Gold/min"] = df["g/m"].apply(lambda x: round(x, 2))
@@ -214,7 +215,78 @@ def update_players(
     wks.set_dataframe(nf, (1, 1))
 
 
-if __name__ == "__main__":
+def update_teampages(teampage: TeamPage, sheet: pygsheets.Spreadsheet):
+    for team_code in teampage.team_codes():
+        try:
+            print(f"Updating team page for {team_code}")
+            update_teampage(teampage, sheet, team_code)
+        except pygsheets.exceptions.WorksheetNotFound:
+            print(f"No template page found for {team_code}")
+
+
+def update_teampage(
+    teampage: TeamPage,
+    sheet: pygsheets.Spreadsheet,
+    code: str,
+):
+
+    team_name = teampage.team_name(code)
+
+    wks = sheet.worksheet_by_title(team_name)
+
+    wks.cell((2, 7)).value = code
+    wks.cell((1, 1)).value = teampage.logo(code)
+    match_history(code, teampage, wks, 21, 1)
+    banned_by(code, teampage, wks, 2, 10)
+    banned_against(code, teampage, wks, 2, 13)
+    #     for column in range(0, 15):
+    #         cell = wks.cell((base_row + row, base_column + column))
+    #         win_cells.append(cell) if win else lose_cells.append(cell)
+
+    # wks.update_cells(win_cells, "userEnteredFormat/textFormat/bold")
+
+
+def banned_by(
+    code: str,
+    teampage: TeamPage,
+    wks: pygsheets.Worksheet,
+    base_row: int,
+    base_column: int,
+):
+    df = teampage.banned_by(code).head(15)
+    print(df)
+    wks.set_dataframe(df, (base_row, base_column), copy_head=False)
+
+
+def banned_against(
+    code: str,
+    teampage: TeamPage,
+    wks: pygsheets.Worksheet,
+    base_row: int,
+    base_column: int,
+):
+    df = teampage.banned_against(code).head(15)
+    wks.set_dataframe(df, (base_row, base_column), copy_head=False)
+
+
+def match_history(
+    code: str,
+    teampage: TeamPage,
+    wks: pygsheets.Worksheet,
+    base_row: int,
+    base_column: int,
+):
+    df = teampage.short_history(code)
+
+    wks.set_dataframe(df, (base_row, base_column), copy_head=False)
+
+    # for row in df.index:
+    #     result = df.loc[row, "result"]
+    #     cell = wks.cell((row + base_row, base_column + 15))
+    #     cell.color = (0, 1, 0, 0.3) if result == "Win" else (1, 0, 0, 0.4)
+
+
+def main():
     plat_performances = get_data(
         "http://api.brycenaddison.com/performances/plat",
         "data/platperformances.json",
@@ -252,4 +324,24 @@ if __name__ == "__main__":
     update_champs(dia_champs, dia_sheet, "Champions", teams)
 
     update_teams(plat_teams, plat_sheet, "Teams", teams)
-    update_teams(plat_teams, dia_sheet, "Teams", teams)
+    update_teams(dia_teams, dia_sheet, "Teams", teams)
+
+
+if __name__ == "__main__":
+    plat_performances = get_data(
+        "http://api.brycenaddison.com/performances/plat",
+        "data/platperformances.json",
+    )
+    plat_teamperformances = get_data(
+        "http://api.brycenaddison.com/teamperformances/plat",
+        "data/platteamperformances.json",
+    )
+    plat_teams = get_data(
+        "http://api.brycenaddison.com/teams/plat/", "data/plat_teams.json"
+    )
+    gc = pygsheets.authorize(service_file="client_secret.json")
+
+    plat_sheet = gc.open_by_key("17bzMtkinBMWADMarb0gM1BBSGt_O4GPhQR7ANAOh-4g")
+
+    plat_page = TeamPage(plat_performances, plat_teamperformances, plat_teams)
+    update_teampages(plat_page, plat_sheet)

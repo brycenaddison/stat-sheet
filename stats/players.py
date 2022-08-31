@@ -74,6 +74,7 @@ class Players:
                 "tk25": 0,
                 "td25": 0,
                 "ta25": 0,
+                "picks": {}
             }
 
     def add_performance(self, p):
@@ -131,6 +132,10 @@ class Players:
         d["tk25"] += p["tk25"]
         d["td25"] += p["td25"]
         d["ta25"] += p["ta25"]
+        if p["champid"] not in d["picks"]:
+            d["picks"][p["champid"]] = 1
+        else:
+            d["picks"][p["champid"]] += 1
 
     def add_all_performances(self, data):
         for p in data:
