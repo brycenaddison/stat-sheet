@@ -1,9 +1,10 @@
 import json
 import pandas
+from stats.roster import Roster
 
 
 class Players:
-    def __init__(self, data: dict = None):
+    def __init__(self, data: dict = None, teams: dict = None):
         """Initializes champion stats, can process data from
         dict[matchId, MatchDTO] from Riot Games match-v5 API
 
@@ -11,6 +12,9 @@ class Players:
             data (dict, optional): _description_. Defaults to None.
         """
         self.players = {}
+        self.teams = teams
+        self.roster = Roster()
+        self.roster.load_data()
         if data is not None:
             self.add_all_performances(data)
 
@@ -74,7 +78,7 @@ class Players:
                 "tk25": 0,
                 "td25": 0,
                 "ta25": 0,
-                "picks": {}
+                "picks": {},
             }
 
     def add_performance(self, p):
@@ -161,6 +165,27 @@ class Players:
             pandas.DataFrame: Dataframe of champion summary stats
         """
         print("Exporting dataframe...")
+
+        def get_property(team: str, property: str, teams: dict[str, any]):
+            if team == "":
+                return ""
+            try:
+                return list(filter(lambda item: item["code"] == team, teams))[
+                    0
+                ][property]
+            except IndexError:
+                print(json.dumps(teams, indent=4))
+                print(team)
+                raise IndexError
+
+        def percent(column):
+            return column.apply(
+                lambda x: "{:.0%}".format(x) if x != "" else ""
+            )
+
+        def time(x):
+            return f"{x.components.hours:02d}:{x.components.minutes:02d}:{x.components.seconds:02d}"
+
         df = pandas.DataFrame().from_records(list(self.players.values()))
 
         df["kda"] = (df["kills"] + df["assists"]) / df["deaths"]
@@ -195,6 +220,76 @@ class Players:
         df["dmg%"] = df["dmg"] / df["tdmg"]
         df["vs%"] = df["vs"] / df["tvs"]
 
+        roles = {
+            "TOP": "Top",
+            "JUNGLE": "Jungle",
+            "MIDDLE": "Middle",
+            "BOTTOM": "Bottom",
+            "UTILITY": "Support",
+        }
+
+        df["role"] = df["role"].apply(lambda x: roles[x])
+
+        nf = pandas.DataFrame()
+
+        nf["Team"] = df["team"].apply(
+            lambda x: f'=IMAGE("{get_property(x, "logo", self.teams)}")'
+        )
+        nf["Team Code"] = df["team"]
+
+        nf["Name"] = df["puuid"].apply(self.roster.get_name)
+        self.roster.dump_data()
+
+        nf["Role"] = df["role"]
+        nf["Games"] = df["n"]
+        nf["Win Rate"] = percent(df["wins"] / df["n"])
+        nf["KDA"] = df["kda"].apply(lambda x: round(x, 2))
+        nf["Kills"] = df["kills"]
+        nf["Deaths"] = df["deaths"]
+        nf["Assists"] = df["assists"]
+        nf["Avg Kills"] = df["k/g"].apply(lambda x: round(x, 2))
+        nf["Avg Deaths"] = df["d/g"].apply(lambda x: round(x, 2))
+        nf["Avg Assists"] = df["a/g"].apply(lambda x: round(x, 2))
+        nf["CS/min"] = df["cs/m"].apply(lambda x: round(x, 2))
+        nf["Gold/min"] = df["g/m"].apply(lambda x: round(x, 2))
+        nf["Gold%"] = percent(df["gold%"])
+        nf["KP%"] = percent(df["kp"])
+        nf["JP%"] = percent(df["jp%"])
+        nf["DMG%"] = percent(df["dmg%"])
+        nf["DMG/Gold"] = df["dmg/gold"].apply(lambda x: round(x, 2))
+        nf["DMG/min"] = df["dmg/m"].apply(lambda x: round(x, 2))
+        nf["VS/min"] = df["vs/m"].apply(lambda x: round(x, 2))
+        nf["W/min"] = df["w/m"].apply(lambda x: round(x, 2))
+        nf["WC/min"] = df["wc/m"].apply(lambda x: round(x, 2))
+        nf["CW/min"] = df["cw/m"].apply(lambda x: round(x, 2))
+        nf["VS%"] = percent(df["vs%"])
+        nf["GD@8"] = df["gd8/g"].apply(lambda x: round(x, 2))
+        nf["CSD@8"] = df["csd8/g"].apply(lambda x: round(x, 2))
+        nf["XPD@8"] = df["xpd8/g"].apply(lambda x: round(x, 2))
+        nf["GD@14"] = df["gd14/g"].apply(lambda x: round(x, 2))
+        nf["CSD@14"] = df["csd14/g"].apply(lambda x: round(x, 2))
+        nf["XPD@14"] = df["xpd14/g"].apply(lambda x: round(x, 2))
+        nf["K+A@15"] = df["ka15/g"].apply(lambda x: round(x, 2))
+        nf["KP%@15"] = percent(df["kp15"])
+        nf["K+A@25"] = df["ka25/g"].apply(lambda x: round(x, 2))
+        nf["KP%@25"] = percent(df["kp25"])
+        nf["FB%"] = percent(df["fb%"])
+        nf["FB Victim"] = percent(df["fbv%"])
+        nf["Kill%"] = percent(df["kill%"])
+        nf["Death%"] = percent(df["death%"])
+        nf["Solo Kills"] = df["solokills"]
+        nf["Doubles"] = df["doubles"]
+        nf["Triples"] = df["triples"]
+        nf["Quadras"] = df["quadras"]
+        nf["Pentakills"] = df["pentas"]
+
+        nf = nf.sort_values(
+            ["Kills", "Games", "Win Rate"],
+            ascending=[False, False, False],
+            ignore_index=True,
+        )
+        nf.replace(float("inf"), "Perfect", inplace=True)
+
         print("Dataframe exported.")
 
-        return df
+        return nf

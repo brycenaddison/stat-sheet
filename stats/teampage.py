@@ -1,4 +1,5 @@
 from stats.roster import Roster
+from stats.players import Players
 import requests
 import pandas
 
@@ -63,25 +64,26 @@ class TeamPage:
             bot = self.perf(teamcode, id, "BOTTOM")
             sup = self.perf(teamcode, id, "UTILITY")
 
-            table["top_champ"].append(self.img(top["champid"]))
-            table["top_player"].append(self.name(top["puuid"]))
-            table["top_kda"].append(self.kda(top))
 
-            table["jg_champ"].append(self.img(jg["champid"]))
-            table["jg_player"].append(self.name(jg["puuid"]))
-            table["jg_kda"].append(self.kda(jg))
+            table["top_champ"].append("" if top is None else self.img(top["champid"]))
+            table["top_player"].append("" if top is None else self.name(top["puuid"]))
+            table["top_kda"].append("" if top is None else self.kda(top))
 
-            table["mid_champ"].append(self.img(mid["champid"]))
-            table["mid_player"].append(self.name(mid["puuid"]))
-            table["mid_kda"].append(self.kda(mid))
+            table["jg_champ"].append("" if jg is None else self.img(jg["champid"]))
+            table["jg_player"].append("" if jg is None else self.name(jg["puuid"]))
+            table["jg_kda"].append("" if jg is None else self.kda(jg))
 
-            table["bot_champ"].append(self.img(bot["champid"]))
-            table["bot_player"].append(self.name(bot["puuid"]))
-            table["bot_kda"].append(self.kda(bot))
+            table["mid_champ"].append("" if mid is None else self.img(mid["champid"]))
+            table["mid_player"].append("" if mid is None else self.name(mid["puuid"]))
+            table["mid_kda"].append("" if mid is None else self.kda(mid))
 
-            table["sup_champ"].append(self.img(sup["champid"]))
-            table["sup_player"].append(self.name(sup["puuid"]))
-            table["sup_kda"].append(self.kda(sup))
+            table["bot_champ"].append("" if bot is None else self.img(bot["champid"]))
+            table["bot_player"].append("" if bot is None else self.name(bot["puuid"]))
+            table["bot_kda"].append("" if bot is None else self.kda(bot))
+
+            table["sup_champ"].append("" if sup is None else self.img(sup["champid"]))
+            table["sup_player"].append("" if sup is None else self.name(sup["puuid"]))
+            table["sup_kda"].append("" if sup is None else self.kda(sup))
 
             table["result"].append("Win" if match["win"] else "Loss")
             table["opponent"].append(self.team_name(match["opponent"]))
@@ -120,14 +122,17 @@ class TeamPage:
         return f'=IMAGE("http://ddragon.leagueoflegends.com/cdn/12.16.1/img/champion/{self.ids[key]}.png")'
 
     def perf(self, teamcode, matchId, role):
-        return list(
+        result = list(
             filter(
                 lambda item: item["team"] == teamcode
                 and item["matchId"] == matchId
                 and item["role"] == role,
                 self.players,
             )
-        )[0]
+        )
+        if len(result) == 0:
+            return None
+        return result[0]
 
     def kda(self, perf):
         k = perf["kills"]
@@ -196,3 +201,12 @@ class TeamPage:
     def champ_name(self, key):
         self.set_names()
         return self.names[key]
+
+    def playerlist(self, teamcode, players: Players):
+        df = players.dataframe()
+        df = df[df["Team Code"] == teamcode][
+            ["Name", "Role", "Games", "KDA", "KP%", "DMG%", "Gold%", "VS%"]
+        ].sort_values(
+            ["Games", "KDA"], ascending=[False, False], ignore_index=True
+        )
+        return df

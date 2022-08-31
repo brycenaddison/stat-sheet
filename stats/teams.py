@@ -122,7 +122,7 @@ class Teams:
 
         print(f"Dumping data to {filename}")
         with open(filename, "w") as f:
-            json.dump(self.players, f, indent=4)
+            json.dump(self.teams, f, indent=4)
 
     def dataframe(self) -> pandas.DataFrame:
         """Outputs champion stat summary as a dataframe
@@ -150,6 +150,8 @@ class Teams:
         df["cw/m"] = df["cw"] * 60 / df["time"]
         df["wc/m"] = df["wc"] * 60 / df["time"]
         df["wc%"] = df["wc"] / df["ow"]
+        df["k15/g"] = df["k15"] / df["n"]
+        df["k25/g"] = df["k25"] / df["n"]
         df["gd14/g"] = df["gd14"] / df["n"]
         df["xpd14/g"] = df["xpd14"] / df["n"]
         df["csd14/g"] = df["csd14"] / df["n"]

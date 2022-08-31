@@ -8,6 +8,8 @@ import pygsheets
 import json
 import os
 import pandas
+import threading
+import random
 
 
 def download_data(url, filename):
@@ -141,104 +143,71 @@ def update_players(
     players: Players, sheet: pygsheets.Spreadsheet, sheet_name: str, team_data
 ):
     df = players.dataframe()
-    nf = pandas.DataFrame()
 
-    nf["Team"] = df["team"].apply(
-        lambda x: f'=IMAGE("{get_property(x, "logo", team_data)}")'
-    )
-    nf["Team Code"] = df["team"]
-
-    roster = Roster()
-    roster.load_data()
-    nf["Summoner Name"] = df["puuid"].apply(roster.get_name)
-    roster.dump_data()
-
-    roles = {
-        "TOP": "Top",
-        "JUNGLE": "Jungle",
-        "MIDDLE": "Middle",
-        "BOTTOM": "Bottom",
-        "UTILITY": "Support",
-    }
-
-    nf["Role"] = df["role"].apply(lambda x: roles[x])
-    nf["Games"] = df["n"]
-    nf["Win Rate"] = percent(df["wins"] / df["n"])
-    nf["KDA"] = df["kda"].apply(lambda x: round(x, 2))
-    nf["Kills"] = df["kills"]
-    nf["Deaths"] = df["deaths"]
-    nf["Assists"] = df["assists"]
-    nf["Avg Kills"] = df["k/g"].apply(lambda x: round(x, 2))
-    nf["Avg Deaths"] = df["d/g"].apply(lambda x: round(x, 2))
-    nf["Avg Assists"] = df["a/g"].apply(lambda x: round(x, 2))
-    nf["CS/min"] = df["cs/m"].apply(lambda x: round(x, 2))
-    nf["Gold/min"] = df["g/m"].apply(lambda x: round(x, 2))
-    nf["Gold%"] = percent(df["gold%"])
-    nf["KP%"] = percent(df["kp"])
-    nf["JP%"] = percent(df["jp%"])
-    nf["DMG%"] = percent(df["dmg%"])
-    nf["DMG/Gold"] = df["dmg/gold"].apply(lambda x: round(x, 2))
-    nf["DMG/min"] = df["dmg/m"].apply(lambda x: round(x, 2))
-    nf["VS/min"] = df["vs/m"].apply(lambda x: round(x, 2))
-    nf["W/min"] = df["w/m"].apply(lambda x: round(x, 2))
-    nf["WC/min"] = df["wc/m"].apply(lambda x: round(x, 2))
-    nf["CW/min"] = df["cw/m"].apply(lambda x: round(x, 2))
-    nf["GD@8"] = df["gd8/g"].apply(lambda x: round(x, 2))
-    nf["CSD@8"] = df["csd8/g"].apply(lambda x: round(x, 2))
-    nf["XPD@8"] = df["xpd8/g"].apply(lambda x: round(x, 2))
-    nf["GD@14"] = df["gd14/g"].apply(lambda x: round(x, 2))
-    nf["CSD@14"] = df["csd14/g"].apply(lambda x: round(x, 2))
-    nf["XPD@14"] = df["xpd14/g"].apply(lambda x: round(x, 2))
-    nf["K+A@15"] = df["ka15/g"].apply(lambda x: round(x, 2))
-    nf["KP%@15"] = percent(df["kp15"])
-    nf["K+A@25"] = df["ka25/g"].apply(lambda x: round(x, 2))
-    nf["KP%@25"] = percent(df["kp25"])
-    nf["FB%"] = percent(df["fb%"])
-    nf["FB Victim"] = percent(df["fbv%"])
-    nf["Kill%"] = percent(df["kill%"])
-    nf["Death%"] = percent(df["death%"])
-    nf["Solo Kills"] = df["solokills"]
-    nf["Doubles"] = df["doubles"]
-    nf["Triples"] = df["triples"]
-    nf["Quadras"] = df["quadras"]
-    nf["Pentakills"] = df["pentas"]
-
-    nf = nf.sort_values(
-        ["Kills", "Games", "Win Rate"],
-        ascending=[False, False, False],
-        ignore_index=True,
-    )
-    nf.replace(float("inf"), "Perfect", inplace=True)
-
-    print(nf)
     wks = sheet.worksheet_by_title(sheet_name)
-    wks.set_dataframe(nf, (1, 1))
+    wks.set_dataframe(df, (1, 1))
 
 
-def update_teampages(teampage: TeamPage, sheet: pygsheets.Spreadsheet):
-    for team_code in teampage.team_codes():
-        try:
-            print(f"Updating team page for {team_code}")
-            update_teampage(teampage, sheet, team_code)
-        except pygsheets.exceptions.WorksheetNotFound:
-            print(f"No template page found for {team_code}")
+def update_teampages(
+    teampage: TeamPage, players: Players, sheet: pygsheets.Spreadsheet
+):
+    # threads = []
+    codes = teampage.team_codes()
+    for team_code in codes:
+        print(f"Updating team page for {team_code}")
+        update_teampage(teampage, players, sheet, team_code)
+    #     threads.append(
+    #         threading.Thread(
+    #             target=update_teampage,
+    #             args=(
+    #                 teampage,
+    #                 players,
+    #                 sheet,
+    #                 team_code,
+    #             ),
+    #         )
+    #     )
+    # for t in threads:
+    #     t.start()
+    # for t in threads:
+    #     t.join()
 
 
 def update_teampage(
     teampage: TeamPage,
+    players: Players,
     sheet: pygsheets.Spreadsheet,
     code: str,
 ):
 
     team_name = teampage.team_name(code)
+    wks = None
 
-    wks = sheet.worksheet_by_title(team_name)
+    try:
+        wks = sheet.worksheet_by_title(team_name)
+    except pygsheets.exceptions.WorksheetNotFound:
+        print(f"No template page found for {team_name}")
+        return
 
     wks.cell((2, 7)).value = code
     wks.cell((1, 1)).value = teampage.logo(code)
+    print(f"Adding match history for {team_name}")
     match_history(code, teampage, wks, 21, 1)
-    banned_by(code, teampage, wks, 2, 10)
-    banned_against(code, teampage, wks, 2, 13)
+    print(f"Adding bans for {team_name}")
+    wks.set_dataframe(
+        teampage.banned_by(code).head(15),
+        (2, 10),
+        copy_head=False,
+    )
+    wks.set_dataframe(
+        teampage.banned_against(code).head(15), (2, 13), copy_head=False
+    )
+    print(f"Adding player list for {team_name}")
+    wks.set_dataframe(
+        teampage.playerlist(code, players).head(15), (2, 17), copy_head=False
+    )
+    print(f"Added {team_name}")
+
     #     for column in range(0, 15):
     #         cell = wks.cell((base_row + row, base_column + column))
     #         win_cells.append(cell) if win else lose_cells.append(cell)
@@ -254,7 +223,6 @@ def banned_by(
     base_column: int,
 ):
     df = teampage.banned_by(code).head(15)
-    print(df)
     wks.set_dataframe(df, (base_row, base_column), copy_head=False)
 
 
@@ -303,45 +271,44 @@ def main():
         "http://api.brycenaddison.com/teamperformances/fri",
         "data/diateamperformances.json",
     )
-    teams = get_data("http://api.brycenaddison.com/teams", "data/teams.json")
+    plat_teamdata = get_data(
+        "http://api.brycenaddison.com/teams/plat", "data/plat_teams.json"
+    )
+    dia_teamdata = get_data(
+        "http://api.brycenaddison.com/teams/fri", "data/dia_teams.json"
+    )
 
-    gc = pygsheets.authorize(service_file="client_secret.json")
+    gc = pygsheets.authorize(
+        service_file="client_secret.json", retries=1000, seconds_per_quota=10
+    )
     plat_sheet = gc.open_by_key("17bzMtkinBMWADMarb0gM1BBSGt_O4GPhQR7ANAOh-4g")
     dia_sheet = gc.open_by_key("1gdjQQycmcA25PraEaTn16O1tpL20I9edYN_Y_o67nMA")
 
-    plat_players = Players(plat_performances)
+    plat_players = Players(plat_performances, plat_teamdata)
     plat_champs = Champions(plat_performances, plat_teamperformances)
     plat_teams = Teams(plat_teamperformances)
+    plat_page = TeamPage(
+        plat_performances, plat_teamperformances, plat_teamdata
+    )
 
-    dia_players = Players(dia_performances)
+    dia_players = Players(dia_performances, dia_teamdata)
     dia_champs = Champions(dia_performances, dia_teamperformances)
     dia_teams = Teams(dia_teamperformances)
+    dia_page = TeamPage(dia_performances, dia_teamperformances, dia_teamdata)
 
-    update_players(plat_players, plat_sheet, "Players", teams)
-    update_players(dia_players, dia_sheet, "Players", teams)
+    update_teampage(dia_page, dia_players, dia_sheet, "JD")
+    update_teampages(plat_page, plat_players, plat_sheet)
+    update_teampages(dia_page, dia_players, dia_sheet)
 
-    update_champs(plat_champs, plat_sheet, "Champions", teams)
-    update_champs(dia_champs, dia_sheet, "Champions", teams)
+    update_players(plat_players, plat_sheet, "Players", plat_teamdata)
+    update_players(dia_players, dia_sheet, "Players", dia_teamdata)
 
-    update_teams(plat_teams, plat_sheet, "Teams", teams)
-    update_teams(dia_teams, dia_sheet, "Teams", teams)
+    update_champs(plat_champs, plat_sheet, "Champions", plat_teamdata)
+    update_champs(dia_champs, dia_sheet, "Champions", dia_teamdata)
+
+    update_teams(plat_teams, plat_sheet, "Teams", plat_teamdata)
+    update_teams(dia_teams, dia_sheet, "Teams", dia_teamdata)
 
 
 if __name__ == "__main__":
-    plat_performances = get_data(
-        "http://api.brycenaddison.com/performances/plat",
-        "data/platperformances.json",
-    )
-    plat_teamperformances = get_data(
-        "http://api.brycenaddison.com/teamperformances/plat",
-        "data/platteamperformances.json",
-    )
-    plat_teams = get_data(
-        "http://api.brycenaddison.com/teams/plat/", "data/plat_teams.json"
-    )
-    gc = pygsheets.authorize(service_file="client_secret.json")
-
-    plat_sheet = gc.open_by_key("17bzMtkinBMWADMarb0gM1BBSGt_O4GPhQR7ANAOh-4g")
-
-    plat_page = TeamPage(plat_performances, plat_teamperformances, plat_teams)
-    update_teampages(plat_page, plat_sheet)
+    main()
