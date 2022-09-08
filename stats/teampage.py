@@ -64,32 +64,58 @@ class TeamPage:
             bot = self.perf(teamcode, id, "BOTTOM")
             sup = self.perf(teamcode, id, "UTILITY")
 
-
-            table["top_champ"].append("" if top is None else self.img(top["champid"]))
-            table["top_player"].append("" if top is None else self.name(top["puuid"]))
+            table["top_champ"].append(
+                "" if top is None else self.img(top["champid"])
+            )
+            table["top_player"].append(
+                "" if top is None else self.name(top["puuid"])
+            )
             table["top_kda"].append("" if top is None else self.kda(top))
 
-            table["jg_champ"].append("" if jg is None else self.img(jg["champid"]))
-            table["jg_player"].append("" if jg is None else self.name(jg["puuid"]))
+            table["jg_champ"].append(
+                "" if jg is None else self.img(jg["champid"])
+            )
+            table["jg_player"].append(
+                "" if jg is None else self.name(jg["puuid"])
+            )
             table["jg_kda"].append("" if jg is None else self.kda(jg))
 
-            table["mid_champ"].append("" if mid is None else self.img(mid["champid"]))
-            table["mid_player"].append("" if mid is None else self.name(mid["puuid"]))
+            table["mid_champ"].append(
+                "" if mid is None else self.img(mid["champid"])
+            )
+            table["mid_player"].append(
+                "" if mid is None else self.name(mid["puuid"])
+            )
             table["mid_kda"].append("" if mid is None else self.kda(mid))
 
-            table["bot_champ"].append("" if bot is None else self.img(bot["champid"]))
-            table["bot_player"].append("" if bot is None else self.name(bot["puuid"]))
+            table["bot_champ"].append(
+                "" if bot is None else self.img(bot["champid"])
+            )
+            table["bot_player"].append(
+                "" if bot is None else self.name(bot["puuid"])
+            )
             table["bot_kda"].append("" if bot is None else self.kda(bot))
 
-            table["sup_champ"].append("" if sup is None else self.img(sup["champid"]))
-            table["sup_player"].append("" if sup is None else self.name(sup["puuid"]))
+            table["sup_champ"].append(
+                "" if sup is None else self.img(sup["champid"])
+            )
+            table["sup_player"].append(
+                "" if sup is None else self.name(sup["puuid"])
+            )
             table["sup_kda"].append("" if sup is None else self.kda(sup))
 
             table["result"].append("Win" if match["win"] else "Loss")
             table["opponent"].append(self.team_name(match["opponent"]))
-            table["details"].append(
-                f'=HYPERLINK("{self.link(match["matchId"])}", "Week {match["week"]} Game {match["game"]}")'
-            )
+            details = f'=HYPERLINK("{self.link(match["matchId"])}", "Week {match["week"]} Game {match["game"]}")'
+            if match["week"] == 14 or (
+                match["conf"] == "fri" and match["week"] == 8
+            ):
+                details = f'=HYPERLINK("{self.link(match["matchId"])}", "Finals Game {match["game"]}")'
+            elif match["conf"] == "fri" and match["week"] > 5:
+                details = f'=HYPERLINK("{self.link(match["matchId"])}", "Round {match["week"] - 5} Game {match["game"]}")'
+            elif match["week"] > 7:
+                details = f'=HYPERLINK("{self.link(match["matchId"])}", "Round {match["week"] - 7} Game {match["game"]}")'
+            table["details"].append(details)
 
         df = pandas.DataFrame(table)
 

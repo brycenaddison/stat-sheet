@@ -255,26 +255,26 @@ def match_history(
 
 
 def main():
-    plat_performances = get_data(
+    plat_performances = download_data(
         "http://api.brycenaddison.com/performances/plat",
         "data/platperformances.json",
     )
-    plat_teamperformances = get_data(
+    plat_teamperformances = download_data(
         "http://api.brycenaddison.com/teamperformances/plat",
         "data/platteamperformances.json",
     )
-    dia_performances = get_data(
+    dia_performances = download_data(
         "http://api.brycenaddison.com/performances/fri",
         "data/diaperformances.json",
     )
-    dia_teamperformances = get_data(
+    dia_teamperformances = download_data(
         "http://api.brycenaddison.com/teamperformances/fri",
         "data/diateamperformances.json",
     )
-    plat_teamdata = get_data(
+    plat_teamdata = download_data(
         "http://api.brycenaddison.com/teams/plat", "data/plat_teams.json"
     )
-    dia_teamdata = get_data(
+    dia_teamdata = download_data(
         "http://api.brycenaddison.com/teams/fri", "data/dia_teams.json"
     )
 
@@ -296,18 +296,17 @@ def main():
     dia_teams = Teams(dia_teamperformances)
     dia_page = TeamPage(dia_performances, dia_teamperformances, dia_teamdata)
 
-    update_teampage(dia_page, dia_players, dia_sheet, "JD")
-    update_teampages(plat_page, plat_players, plat_sheet)
+    # update_teampages(plat_page, plat_players, plat_sheet)
     update_teampages(dia_page, dia_players, dia_sheet)
 
-    update_players(plat_players, plat_sheet, "Players", plat_teamdata)
-    update_players(dia_players, dia_sheet, "Players", dia_teamdata)
+    # update_players(plat_players, plat_sheet, "Players", plat_teamdata)
+    # update_players(dia_players, dia_sheet, "Players", dia_teamdata)
 
-    update_champs(plat_champs, plat_sheet, "Champions", plat_teamdata)
-    update_champs(dia_champs, dia_sheet, "Champions", dia_teamdata)
+    # update_champs(plat_champs, plat_sheet, "Champions", plat_teamdata)
+    # update_champs(dia_champs, dia_sheet, "Champions", dia_teamdata)
 
-    update_teams(plat_teams, plat_sheet, "Teams", plat_teamdata)
-    update_teams(dia_teams, dia_sheet, "Teams", dia_teamdata)
+    # update_teams(plat_teams, plat_sheet, "Teams", plat_teamdata)
+    # update_teams(dia_teams, dia_sheet, "Teams", dia_teamdata)
 
 
 if __name__ == "__main__":
